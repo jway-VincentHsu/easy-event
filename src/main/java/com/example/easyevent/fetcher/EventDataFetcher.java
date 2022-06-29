@@ -8,10 +8,7 @@ import com.example.easyevent.mapper.UserEntityMapper;
 import com.example.easyevent.type.Event;
 import com.example.easyevent.type.EventInput;
 import com.example.easyevent.type.User;
-import com.netflix.graphql.dgs.DgsComponent;
-import com.netflix.graphql.dgs.DgsMutation;
-import com.netflix.graphql.dgs.DgsQuery;
-import com.netflix.graphql.dgs.InputArgument;
+import com.netflix.graphql.dgs.*;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
@@ -26,11 +23,7 @@ public class EventDataFetcher {
     @DgsQuery
     public List<Event> events() {
         List<EventEntity> eventEntityList = eventEntityMapper.selectList(new QueryWrapper<>());
-        List<Event> eventList = eventEntityList.stream().map(eventEntity -> {
-            Event event = Event.fromEntity(eventEntity);
-            populateEventWithUser(event, eventEntity.getCreatorId());
-            return event;
-        }).collect(Collectors.toList());
+        List<Event> eventList = eventEntityList.stream().map(Event::fromEntity).collect(Collectors.toList());
         return eventList;
     }
 
@@ -42,14 +35,16 @@ public class EventDataFetcher {
 
         Event newEvent = Event.fromEntity(newEventEntity);
 
-        populateEventWithUser(newEvent, newEventEntity.getCreatorId());
-
         return newEvent;
     }
 
-    private void populateEventWithUser(Event event, Integer userId){
-        UserEntity userEntity = userEntityMapper.selectById(userId);
+    @DgsData(parentType = "Event", field = "creator")
+    public User creator(DgsDataFetchingEnvironment dfe){
+        Event event = dfe.getSource();
+        UserEntity userEntity = userEntityMapper.selectById(event.getCreatorId());
         User user = User.fromEntity(userEntity);
-        event.setCreator(user);
+        return user;
     }
+
+
 }
